@@ -128,7 +128,7 @@ main = do
     socket <- socket AF_INET Stream defaultProtocol
     setSocketOption socket ReuseAddr 1
 
-    bind socket (SockAddrInet 9002 iNADDR_ANY)
+    bind socket (SockAddrInet 9001 iNADDR_ANY)
     listen socket 1024
 
     forever $ do
