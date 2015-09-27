@@ -17,6 +17,9 @@ cabal-version:       >=1.10
 
 executable dogc
   main-is:             Main.hs
+  ghc-options:          -threaded
+                        -rtsopts
+                        -O3
   -- other-modules:
   -- other-extensions:
   build-depends:    base >=4.8 && <4.9,

@@ -92,7 +92,7 @@ talk client proxyAddr key password = do
                     len <- getWord32be
                     getByteString $ fromIntegral len
                 in do
-                    buffer <- NB.recv proxy 4096
+                    buffer <- NB.recv proxy 65536
                     loop parser $ runGetPartial parser buffer
                     where
                         loop parser (Done chunk restBuffer) = do
@@ -100,11 +100,9 @@ talk client proxyAddr key password = do
                             let clearChunk = pkcsRemovePadding (decryptCBC cipher iv chunk) 16
                                 in NB.sendAll handle clearChunk
 
-                            buffer <- NB.recv proxy 4096
-                            unless (BS.null buffer) $
-                                loop parser $ runGetPartial parser $ BS.concat [restBuffer, buffer]
+                            loop parser $ runGetPartial parser restBuffer
                         loop parser (Partial continue) = do
-                            buffer <- NB.recv proxy 4006
+                            buffer <- NB.recv proxy 65536
                             unless (BS.null buffer) $
                                 loop parser $ continue buffer
                         loop _ (Fail err _) = error err
