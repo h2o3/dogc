@@ -1,19 +1,19 @@
-import Network.Socket
+import           Control.Concurrent
+import           Control.Concurrent.STM
+import           Control.Exception
+import           Control.Monad
+import           Crypto.Cipher.AES
+import           Crypto.Hash.MD5           (hash)
+import qualified Data.ByteString           as BS
+import qualified Data.ByteString.Char8     as BC
+import           Data.Monoid               ((<>))
+import           Data.Serialize
+import           Data.Serialize.Get
+import           Data.Serialize.Put
+import           Network.Socket
 import qualified Network.Socket.ByteString as NB
-import Data.Monoid ((<>))
-import System.IO
-import System.Environment
-import Control.Monad
-import Control.Exception
-import Control.Concurrent
-import Control.Concurrent.STM
-import Data.Serialize
-import Data.Serialize.Put
-import Data.Serialize.Get
-import Crypto.Cipher.AES
-import Crypto.Hash.MD5 (hash)
-import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BC
+import           System.Environment
+import           System.IO
 
 
 evpBytesToKey :: BS.ByteString -> Int -> Int -> (BS.ByteString, BS.ByteString)
