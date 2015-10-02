@@ -1,17 +1,16 @@
+import           Concurrent                (forkAndWaitAny)
 import           Control.Concurrent
 import           Control.Concurrent.STM
 import           Control.Exception
 import           Control.Monad
-import           Crypto.Cipher.AES
-import           Crypto.Hash.MD5           (hash)
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BC
-import           Data.Monoid               ((<>))
 import           Data.Serialize
 import           Data.Serialize.Get
 import           Data.Serialize.Put
 import           Network.Socket
 import qualified Network.Socket.ByteString as NB
+import           Secure                    (decrypt, encrypt, initCipher)
 import           System.Environment
 import           System.IO
 
@@ -21,38 +20,6 @@ data ProxyTransportProp = HTTP SockAddr String
                         deriving (Show)
 
 
-evpBytesToKey :: BS.ByteString -> Int -> Int -> (BS.ByteString, BS.ByteString)
-evpBytesToKey password keyLen ivLen =
-    let ms' = BS.concat $ ms 0 []
-        key = BS.take keyLen ms'
-        iv  = BS.take ivLen $ BS.drop keyLen ms'
-     in (key, iv)
-  where
-    ms :: Int -> [BS.ByteString] -> [BS.ByteString]
-    ms 0 _ = ms 1 [hash password]
-    ms i m
-        | BS.length (BS.concat m) < keyLen + ivLen =
-            ms (i+1) (m ++ [hash (last m <> password)])
-        | otherwise = m
-
-
-pkcsPadding :: BS.ByteString -> Int -> BS.ByteString
-pkcsPadding block size =
-    let len = BS.length block
-        mlen = len `mod` size
-        pad = size - mlen
-    in
-        BS.concat [block, BS.replicate pad $ fromIntegral pad]
-
-
-pkcsRemovePadding :: BS.ByteString -> Int -> BS.ByteString
-pkcsRemovePadding block size =
-    let len = BS.length block
-        pad = BS.last block
-    in
-        BS.take (len - fromIntegral pad) block
-
-
 talk :: Socket -> ProxyTransportProp -> BS.ByteString -> BS.ByteString -> IO ()
 talk client transport key password = do
     proxy <- socket AF_INET Stream defaultProtocol
@@ -60,29 +27,16 @@ talk client transport key password = do
     -- connect to the proxy
     connectToProxy proxy transport
 
-    exitSignal <- newTChanIO
-
-    let (pwd, iv) = evpBytesToKey password 32 16
-        cipher = initAES pwd
-        final = threadFinalHandler exitSignal
+    let (cipher, iv) = initCipher password
         handleProxy = recvOnProxy transport proxy client cipher iv
         handleClient = recvOnHandle client proxy cipher iv
-        in do
-            -- fork receive thread - handle
-            handleReceiveThread <- forkFinally handleClient final
-            -- fork receive thread - proxy
-            proxyReceiveThread <- forkFinally handleProxy final
-
-            -- cleanup
-            join $ atomically $ do
-                _ <- readTChan exitSignal
-                return $ cleanup [proxy] [handleReceiveThread, proxyReceiveThread]
+        in forkAndWaitAny [handleProxy, handleClient] threadFinalHandler $ cleanup proxy
     where
         recvOnHandle client proxy cipher iv = loop where
             loop = do
                 chunk <- NB.recv client 4096
                 unless (BS.null chunk) $ do
-                    let encrypted = encryptCBC cipher iv $ pkcsPadding chunk 16
+                    let encrypted = encrypt cipher iv chunk
                         len = BS.length encrypted
                         encodedLen = runPut $ putWord32be $ fromIntegral len
                         in NB.sendMany proxy [encodedLen, encrypted]
@@ -94,7 +48,7 @@ talk client transport key password = do
             where
                 loop parser (Done chunk restBuffer) = do
                     -- decrypt and forward to client
-                    let clearChunk = pkcsRemovePadding (decryptCBC cipher iv chunk) 16
+                    let clearChunk = decrypt cipher iv chunk
                         in NB.sendAll handle clearChunk
 
                     loop parser $ runGetPartial parser restBuffer
@@ -134,16 +88,14 @@ talk client transport key password = do
             len <- getWord32be
             getByteString $ fromIntegral len
 
-        threadFinalHandler exitSignal e = do
+        threadFinalHandler e =
             case e of
                 Left err -> print err
                 otherwise -> return ()
-            atomically $ writeTChan exitSignal True
 
-        cleanup sockets threads = do
+        cleanup socket = do
             putStrLn "cleanup"
-            mapM_ killThread threads
-            mapM_ close sockets
+            close socket
 
 
 main :: IO ()
