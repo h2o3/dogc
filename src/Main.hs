@@ -1,7 +1,5 @@
 import           Concurrent                (forkAndWaitAny)
 import           Control.Concurrent
-import           Control.Concurrent.STM
-import           Control.Exception
 import           Control.Monad
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BC
@@ -12,7 +10,6 @@ import           Network.Socket
 import qualified Network.Socket.ByteString as NB
 import           Secure                    (decrypt, encrypt, initCipher)
 import           System.Environment
-import           System.IO
 
 
 data ProxyTransportProp = HTTP SockAddr String
