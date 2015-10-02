@@ -18,10 +18,10 @@ forkAndWaitAny tasks finalHook cleanupHook = do
         return $ cleanup cleanupHook threads
     where
         finalHandler chan hook result = do
-            hook result
+            _ <- hook result
             atomically $ writeTChan chan True
-        cleanup cleanup threads = do
-            cleanup
+        cleanup hook threads = do
+            _ <- hook
             mapM_ killThread threads
 
 
