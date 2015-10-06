@@ -1,3 +1,5 @@
+module Client (main) where
+
 import           Concurrent                (forkAndWaitAny)
 import           Control.Concurrent
 import           Control.Monad

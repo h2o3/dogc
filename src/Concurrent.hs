@@ -1,6 +1,6 @@
 module Concurrent (
-forkAndWaitAny, forkManyWithFinally
-) where
+  forkAndWaitAny, forkManyWithFinally
+  ) where
 
 import           Control.Concurrent
 import           Control.Concurrent.STM
