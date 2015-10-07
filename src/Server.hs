@@ -60,7 +60,7 @@ talk client transProp key pwd addr = do
 
     proxyProcess proxy client cipher iv = loop where
       loop = do
-        buffer <- NB.recv proxy 65536
+        buffer <- NB.recv proxy 65000
         unless (BS.null buffer) $ do
           let encrypted = L.toStrict $ compress $ L.fromStrict $ encrypt cipher iv buffer
               len = BS.length encrypted

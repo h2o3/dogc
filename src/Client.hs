@@ -35,7 +35,7 @@ talk client transport key password = do
     where
         recvOnHandle client proxy cipher iv = loop where
             loop = do
-                chunk <- NB.recv client 4096
+                chunk <- NB.recv client 65000
                 unless (BS.null chunk) $ do
                     let encrypted = L.toStrict $ compress $ L.fromStrict $ encrypt cipher iv chunk
                         len = BS.length encrypted

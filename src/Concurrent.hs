@@ -21,8 +21,8 @@ forkAndWaitAny tasks finalHook cleanupHook = do
             _ <- hook result
             atomically $ writeTChan chan True
         cleanup hook threads = do
-            _ <- hook
             mapM_ killThread threads
+            hook
 
 
 forkManyWithFinally :: (Either SomeException () -> IO()) -> [IO()] -> [ThreadId] -> IO [ThreadId]
