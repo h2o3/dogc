@@ -3,7 +3,7 @@
 
 name:                dogc
 version:             0.1.0.0
-license:             BSD
+license:             MIT
 author:              Steven Zhang
 maintainer:          zhzhxtrrk@gmail.com
 build-type:          Simple
@@ -18,7 +18,8 @@ executable dogc
                     network >= 2.6,
                     cereal >= 0.4.1,
                     cipher-aes >= 0.2.11,
-                    cryptohash >= 0.6.3
+                    cryptohash >= 0.6.3,
+                    zlib >= 0.5.3
   hs-source-dirs:   src
   default-language: Haskell2010
 
@@ -32,6 +33,7 @@ executable dogs
                     network >= 2.6,
                     cereal >= 0.4.1,
                     cipher-aes >= 0.2.11,
-                    cryptohash >= 0.6.3
+                    cryptohash >= 0.6.3,
+                    zlib >= 0.5.3
   hs-source-dirs:   src
   default-language: Haskell2010
