@@ -64,7 +64,7 @@ talk client transProp key pwd addr = do
         unless (BS.null buffer) $ do
           let encrypted = L.toStrict $ compress $ L.fromStrict $ encrypt cipher iv buffer
               len = BS.length encrypted
-              encodedLen = runPut $ putWord32be $ fromIntegral len
+              encodedLen = runPut $ putWord16be $ fromIntegral len
               in NB.sendMany client [encodedLen, encrypted]
           loop
 
@@ -85,7 +85,7 @@ talk client transProp key pwd addr = do
       getByteString $ fromIntegral len
 
     chunkParser = do
-      len <- getWord32be
+      len <- getWord16be
       getByteString $ fromIntegral len
 
     readKey = do

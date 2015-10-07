@@ -39,7 +39,7 @@ talk client transport key password = do
                 unless (BS.null chunk) $ do
                     let encrypted = L.toStrict $ compress $ L.fromStrict $ encrypt cipher iv chunk
                         len = BS.length encrypted
-                        encodedLen = runPut $ putWord32be $ fromIntegral len
+                        encodedLen = runPut $ putWord16be $ fromIntegral len
                         in NB.sendMany proxy [encodedLen, encrypted]
                     loop
 
@@ -86,7 +86,7 @@ talk client transport key password = do
             NB.sendAll proxy key
 
         chunkParser = do
-            len <- getWord32be
+            len <- getWord16be
             getByteString $ fromIntegral len
 
         threadFinalHandler e =
