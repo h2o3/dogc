@@ -77,7 +77,9 @@ talk client transProp key pwd addr = do
           loop $ runGetPartial chunkParser remain
         loop (Partial continuation) = do
           buffer <- NB.recv client 65536
-          loop $ runGetPartial chunkParser buffer
+          if not $ BS.null buffer
+            then loop $ runGetPartial chunkParser buffer
+            else error "EOF"
         loop (Fail err _) = error err
 
     keyParser = do
