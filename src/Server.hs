@@ -4,10 +4,9 @@ import           Concurrent                (forkAndWaitAny)
 import           Control.Concurrent
 import           Control.Exception
 import           Control.Monad
-import Codec.Compression.GZip (compress, decompress)
-import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BC
+import qualified Data.ByteString.Lazy      as L
 import           Data.Serialize
 import           Data.Serialize.Get
 import           Data.Serialize.Put
@@ -62,7 +61,7 @@ talk client transProp key pwd addr = do
       loop = do
         buffer <- NB.recv proxy 65000
         unless (BS.null buffer) $ do
-          let encrypted = L.toStrict $ compress $ L.fromStrict $ encrypt cipher iv buffer
+          let encrypted = encrypt cipher iv buffer
               len = BS.length encrypted
               encodedLen = runPut $ putWord16be $ fromIntegral len
               in NB.sendMany client [encodedLen, encrypted]
@@ -72,7 +71,7 @@ talk client transProp key pwd addr = do
       loop $ runGetPartial chunkParser remain
       where
         loop (Done result remain) = do
-          let clear = decrypt cipher iv $ L.toStrict $ decompress $ L.fromStrict result
+          let clear = decrypt cipher iv result
               in NB.sendAll proxy clear
           loop $ runGetPartial chunkParser remain
         loop (Partial continuation) = do

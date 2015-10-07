@@ -1,6 +1,5 @@
 module Client (main) where
 
-import           Codec.Compression.GZip    (compress, decompress)
 import           Concurrent                (forkAndWaitAny)
 import           Control.Concurrent
 import           Control.Monad
@@ -37,7 +36,7 @@ talk client transport key password = do
             loop = do
                 chunk <- NB.recv client 65000
                 unless (BS.null chunk) $ do
-                    let encrypted = L.toStrict $ compress $ L.fromStrict $ encrypt cipher iv chunk
+                    let encrypted = encrypt cipher iv chunk
                         len = BS.length encrypted
                         encodedLen = runPut $ putWord16be $ fromIntegral len
                         in NB.sendMany proxy [encodedLen, encrypted]
@@ -49,7 +48,8 @@ talk client transport key password = do
             where
                 loop parser (Done chunk restBuffer) = do
                     -- decrypt and forward to client
-                    let clearChunk = decrypt cipher iv $ L.toStrict $ decompress $ L.fromStrict chunk
+                    let len = BS.length chunk
+                        clearChunk = decrypt cipher iv chunk
                         in NB.sendAll handle clearChunk
 
                     loop parser $ runGetPartial parser restBuffer
