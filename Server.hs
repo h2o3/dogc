@@ -2,12 +2,9 @@ module Server (main) where
 
 import           Concurrent                (forkAndWaitAny)
 import           Control.Concurrent
-import           Control.Exception
 import           Control.Monad
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Char8     as BC
-import qualified Data.ByteString.Lazy      as L
-import           Data.Serialize
 import           Data.Serialize.Get
 import           Data.Serialize.Put
 import           Network.Socket
@@ -21,21 +18,16 @@ data TransportProp = HTTP
                    deriving (Show)
 
 
-talk :: Socket -> TransportProp -> BS.ByteString -> BS.ByteString -> SockAddr -> IO ()
-talk client transProp key pwd addr = do
+talk :: Socket -> TransportProp -> BS.ByteString -> SockAddr -> IO ()
+talk client transProp pwd addr = do
   handShake
-
-  (clientKey, remain) <- readKey
-
-  when (key /= clientKey) $
-    error "Wrong key"
 
   proxy <- socket AF_INET Stream defaultProtocol
   connect proxy addr
 
   let (cipher, iv) = initCipher pwd
-      proxyAction = proxyProcess proxy client cipher iv
-      clientAction = clientProcess client proxy cipher iv remain
+      proxyAction = proxyProcess proxy cipher iv
+      clientAction = clientProcess proxy cipher iv
       in forkAndWaitAny [proxyAction, clientAction] final $ close proxy
   where
     handShake =
@@ -57,7 +49,7 @@ talk client transProp key pwd addr = do
                        || BS.isSuffixOf (BC.pack "\r\n\r\n") newChunk) $
                recvHeader newChunk
 
-    proxyProcess proxy client cipher iv = loop where
+    proxyProcess proxy cipher iv = loop where
       loop = do
         buffer <- NB.recv proxy 65000
         unless (BS.null buffer) $ do
@@ -67,8 +59,8 @@ talk client transProp key pwd addr = do
               in NB.sendMany client [encodedLen, encrypted]
           loop
 
-    clientProcess client proxy cipher iv remain =
-      loop $ runGetPartial chunkParser remain
+    clientProcess proxy cipher iv =
+      loop $ runGetPartial chunkParser BS.empty
       where
         loop (Done result remain) = do
           let clear = decrypt cipher iv result
@@ -77,29 +69,13 @@ talk client transProp key pwd addr = do
         loop (Partial continuation) = do
           buffer <- NB.recv client 65536
           if not $ BS.null buffer
-            then loop $ runGetPartial chunkParser buffer
+            then loop $ continuation buffer
             else error "EOF"
         loop (Fail err _) = error err
-
-    keyParser = do
-      len <- getWord8
-      getByteString $ fromIntegral len
 
     chunkParser = do
       len <- getWord16be
       getByteString $ fromIntegral len
-
-    readKey = do
-      chunk <- NB.recv client 65536
-      loop $ runGetPartial keyParser chunk
-      where
-        loop (Done result remain) = return (result, remain)
-        loop (Partial continuation) = do
-          chunk <- NB.recv client 65536
-          if not $ BS.null chunk
-            then loop $ continuation chunk
-            else error "EOF"
-        loop (Fail err _) = error err
 
     final (Left err) = print err
     final _ = return ()
@@ -107,7 +83,7 @@ talk client transProp key pwd addr = do
 
 main :: IO ()
 main = do
-  protocol:host:port:key:password:_ <- getArgs
+  protocol:host:port:password:_ <- getArgs
 
   AddrInfo _ _ _ _ addr _ : _ <- getAddrInfo Nothing (Just host) (Just port)
 
@@ -129,9 +105,8 @@ main = do
 
     putStrLn $ "Hello " ++ show remoteAddr
 
-    let proxyKey = BC.pack key
-        proxyPwd = BC.pack password
-        action = talk client transportProp proxyKey proxyPwd addr
+    let proxyPwd = BC.pack password
+        action = talk client transportProp proxyPwd addr
         final e = do
           msg <- case e of
             Left err -> return $ "Bye " ++ show remoteAddr ++ " with error: " ++ show err

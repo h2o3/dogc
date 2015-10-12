@@ -32,8 +32,8 @@ pkcsPadding block size =
         BS.concat [block, BS.replicate pad $ fromIntegral pad]
 
 
-pkcsRemovePadding :: BS.ByteString -> Int -> BS.ByteString
-pkcsRemovePadding block size =
+pkcsRemovePadding :: BS.ByteString -> BS.ByteString
+pkcsRemovePadding block =
     let len = BS.length block
         pad = BS.last block
     in
@@ -49,4 +49,4 @@ encrypt cipher iv chunk = encryptCBC cipher iv $ pkcsPadding chunk 16
 
 
 decrypt :: AES -> BS.ByteString -> BS.ByteString -> BS.ByteString
-decrypt cipher iv chunk = pkcsRemovePadding (decryptCBC cipher iv chunk) 16
+decrypt cipher iv chunk = pkcsRemovePadding $ decryptCBC cipher iv chunk
