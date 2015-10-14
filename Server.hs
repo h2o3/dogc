@@ -28,17 +28,18 @@ talk client transProp pwd addr = do
   let (cipher, iv) = initCipher pwd
       proxyAction = proxyProcess proxy cipher iv
       clientAction = clientProcess proxy cipher iv
-      in forkAndWaitAny [proxyAction, clientAction] final $ close proxy
+    in forkAndWaitAny [proxyAction, clientAction] final $ close proxy
   where
     handShake =
       case transProp of
         HTTP -> do
           recvHeader BS.empty
-          NB.sendMany client [
-            BC.pack "200 OK HTTP/1.1\r\n",
-            BC.pack "Connection: Upgrade\r\n",
-            BC.pack "Upgrade: DOGS\r\n",
-            BC.pack "\r\n"]
+          NB.sendMany client
+            [ BC.pack "200 OK HTTP/1.1\r\n"
+            , BC.pack "Connection: Upgrade\r\n"
+            , BC.pack "Upgrade: DOGS\r\n"
+            , BC.pack "\r\n"
+            ]
         TCP -> return ()
       where
         recvHeader chunk = do
@@ -56,7 +57,7 @@ talk client transProp pwd addr = do
           let encrypted = encrypt cipher iv buffer
               len = BS.length encrypted
               encodedLen = runPut $ putWord16be $ fromIntegral len
-              in NB.sendMany client [encodedLen, encrypted]
+            in NB.sendMany client [encodedLen, encrypted]
           loop
 
     clientProcess proxy cipher iv =
@@ -64,7 +65,7 @@ talk client transProp pwd addr = do
       where
         loop (Done result remain) = do
           let clear = decrypt cipher iv result
-              in NB.sendAll proxy clear
+            in NB.sendAll proxy clear
           loop $ runGetPartial chunkParser remain
         loop (Partial continuation) = do
           buffer <- NB.recv client 65536
@@ -113,4 +114,4 @@ main = do
             _ -> return $ "Bye " ++ show remoteAddr
           putStrLn msg
           close client
-        in forkFinally action final
+      in forkFinally action final
